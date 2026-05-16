@@ -244,6 +244,13 @@
       overflow-wrap: anywhere;
     }
 
+    .matched-title {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .counter {
       flex-shrink: 0;
       color: var(--muted);
@@ -445,7 +452,10 @@
 
       <aside class="results" aria-label="Candidate sequences">
         <div class="result-header">
-          <div id="matchedName" class="matched-name">等待绘制</div>
+          <div class="matched-title">
+            <div id="matchedName" class="matched-name">等待绘制</div>
+            <button id="glyphSpeakButton" class="speak-button" type="button" aria-label="Enable reading">🔇</button>
+          </div>
           <div id="counter" class="counter">0 条</div>
         </div>
         <div id="resultsBody" class="results-body">
@@ -457,6 +467,8 @@
     <footer class="credit-footer">
       Glyph data and interaction concept adapted from
       <a href="https://github.com/MarsianCreator/INGRESS-GUIDE" target="_blank" rel="noopener noreferrer">MarsianCreator/INGRESS-GUIDE</a>.
+      Project repository:
+      <a href="https://github.com/WallNutttttts/ingress_glyph_tools" target="_blank" rel="noopener noreferrer">WallNutttttts/ingress_glyph_tools</a>.
     </footer>
   </main>
 
@@ -494,6 +506,7 @@
       status: document.getElementById('status'),
       clearButton: document.getElementById('clearButton'),
       matchedName: document.getElementById('matchedName'),
+      glyphSpeakButton: document.getElementById('glyphSpeakButton'),
       counter: document.getElementById('counter'),
       resultsBody: document.getElementById('resultsBody'),
       lengthInputs: Array.from(document.querySelectorAll('input[name="length"]'))
@@ -695,8 +708,19 @@
       state.matchedGlyph = null;
       state.candidates = [];
       state.selectedSequence = null;
-      state.speechEnabled = false;
       renderResults();
+    });
+
+    elements.glyphSpeakButton.addEventListener('click', () => {
+      if (!supportsSpeech()) return;
+
+      state.speechEnabled = !state.speechEnabled;
+      if (state.speechEnabled) {
+        speakCurrentTarget();
+      } else {
+        stopSpeech();
+      }
+      renderSpeechButton();
     });
 
     elements.lengthInputs.forEach((input) => {
@@ -719,11 +743,11 @@
     function setDrawingState() {
       stopSpeech();
       state.selectedSequence = null;
-      state.speechEnabled = false;
       elements.status.textContent = '正在绘制...';
       elements.matchedName.textContent = '绘制中';
       elements.counter.textContent = '0 条';
       elements.resultsBody.innerHTML = '<div class="empty">松开后会识别当前 Glyph。</div>';
+      renderSpeechButton();
     }
 
     function recognizeGlyph(path) {
@@ -744,6 +768,9 @@
       state.matchedGlyph = match || null;
       state.selectedSequence = null;
       updateCandidates();
+      if (state.speechEnabled && match) {
+        speakCurrentTarget();
+      }
     }
 
     function updateCandidates() {
@@ -763,7 +790,6 @@
 
     function renderResults() {
       if (state.selectedSequence) {
-        const speechSupported = supportsSpeech();
         elements.matchedName.textContent = state.selectedSequence.join(' / ');
         elements.counter.textContent = state.selectedSequence.length + ' 图';
         elements.status.textContent = '已锁定候选序列';
@@ -771,29 +797,15 @@
           '<div class="selected-wrap">' +
             '<div class="selected-actions">' +
               '<button id="backButton" class="back-button" type="button">回退</button>' +
-              '<button id="speakButton" class="speak-button ' + (state.speechEnabled ? 'active' : '') + '" type="button" aria-label="' + (state.speechEnabled ? 'Stop reading sequence' : 'Read sequence aloud') + '"' + (speechSupported ? '' : ' disabled title="Speech synthesis is not supported in this browser"') + '>' + (state.speechEnabled ? '🔊' : '🔇') + '</button>' +
             '</div>' +
             sequenceHtml(state.selectedSequence, true) +
           '</div>';
         document.getElementById('backButton').addEventListener('click', () => {
-          state.speechEnabled = false;
           stopSpeech();
           state.selectedSequence = null;
           renderResults();
         });
-        const speakButton = document.getElementById('speakButton');
-        if (speakButton && speechSupported) {
-          speakButton.addEventListener('click', () => {
-            state.speechEnabled = !state.speechEnabled;
-            if (!state.speechEnabled) {
-              stopSpeech();
-            }
-            renderResults();
-          });
-          if (state.speechEnabled) {
-            speakSequence(state.selectedSequence);
-          }
-        }
+        renderSpeechButton();
         return;
       }
 
@@ -802,6 +814,7 @@
         elements.counter.textContent = '0 条';
         elements.status.textContent = '画出第一个 Glyph，下面会显示可选序列';
         elements.resultsBody.innerHTML = '<div class="empty">按住并连线画出一个 Glyph。识别成功后，这里会列出以它开头的序列。</div>';
+        renderSpeechButton();
         return;
       }
 
@@ -814,6 +827,7 @@
 
       if (state.candidates.length === 0) {
         elements.resultsBody.innerHTML = '<div class="empty">没有符合当前 3/4/5 图筛选的候选序列。</div>';
+        renderSpeechButton();
         return;
       }
 
@@ -830,8 +844,12 @@
         button.addEventListener('click', () => {
           state.selectedSequence = state.candidates[Number(button.dataset.index)];
           renderResults();
+          if (state.speechEnabled) {
+            speakCurrentTarget();
+          }
         });
       });
+      renderSpeechButton();
     }
 
     function getSegmentsFromPath(path) {
@@ -920,24 +938,45 @@
       return 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
     }
 
-    function speakSequence(sequence) {
-      if (!supportsSpeech() || !sequence) return;
+    function renderSpeechButton() {
+      const button = elements.glyphSpeakButton;
+      if (!button) return;
+
+      const speechSupported = supportsSpeech();
+      button.disabled = !speechSupported;
+      button.classList.toggle('active', state.speechEnabled);
+      button.textContent = state.speechEnabled ? '🔊' : '🔇';
+      button.setAttribute('aria-label', state.speechEnabled ? 'Disable reading' : 'Enable reading');
+      button.title = speechSupported
+        ? (state.speechEnabled ? 'Reading is on' : 'Reading is off')
+        : 'Speech synthesis is not supported in this browser';
+    }
+
+    function speakCurrentTarget() {
+      const words = currentSpokenWords();
+      if (words.length > 0) {
+        speakWords(words);
+      }
+    }
+
+    function currentSpokenWords() {
+      if (state.selectedSequence) return state.selectedSequence;
+      if (state.matchedGlyph) return [state.matchedGlyph.name[0]];
+      return [];
+    }
+
+    function speakWords(words) {
+      if (!supportsSpeech() || !words || words.length === 0) return;
 
       stopSpeech();
-      const spokenText = sequence.map(pronounceGlyphWord).join(', ');
+      const spokenText = words.map(pronounceGlyphWord).join(', ');
       const utterance = new SpeechSynthesisUtterance(spokenText);
       utterance.lang = 'en-US';
       utterance.rate = 0.86;
       utterance.pitch = 1;
-      utterance.onend = () => {
-        if (state.speechEnabled) {
-          state.speechEnabled = false;
-          renderResults();
-        }
-      };
       utterance.onerror = () => {
         state.speechEnabled = false;
-        renderResults();
+        renderSpeechButton();
       };
       window.speechSynthesis.speak(utterance);
     }
@@ -968,6 +1007,8 @@
         "'": '&#039;'
       }[char]));
     }
+
+    renderSpeechButton();
   </script>
 </body>
 </html>
