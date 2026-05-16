@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ingress Glyph Practice</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070a0c;
+      --panel: #111820;
+      --panel-soft: #17212b;
+      --line: rgba(255, 255, 255, 0.12);
+      --text: #eef5f2;
+      --muted: #8ea19b;
+      --green: #43e061;
+      --cyan: #45d9ff;
+      --amber: #f0b94a;
+      --danger: #ff6871;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(67, 224, 97, 0.16), transparent 28rem),
+        linear-gradient(135deg, #070a0c 0%, #101417 52%, #060909 100%);
+      color: var(--text);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: clamp(12px, 2.5vw, 28px);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    .app {
+      width: min(980px, 100%);
+      min-height: calc(100vh - clamp(24px, 5vw, 56px));
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: rgba(17, 24, 32, 0.9);
+      backdrop-filter: blur(14px);
+      border-radius: 8px;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.05rem, 2.5vw, 1.55rem);
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .status {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .length-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .length-option {
+      position: relative;
+    }
+
+    .length-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .length-option span,
+    .icon-button,
+    .sequence-button,
+    .back-button {
+      border: 1px solid var(--line);
+      background: rgba(23, 33, 43, 0.92);
+      border-radius: 8px;
+    }
+
+    .length-option span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 62px;
+      height: 38px;
+      padding: 0 12px;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .length-option input:checked + span {
+      color: #051008;
+      background: var(--green);
+      border-color: rgba(67, 224, 97, 0.8);
+      box-shadow: 0 0 18px rgba(67, 224, 97, 0.24);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .practice,
+    .results {
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: rgba(17, 24, 32, 0.92);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .practice {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      align-items: center;
+      justify-items: center;
+      padding: clamp(12px, 2.4vw, 22px);
+      gap: 12px;
+    }
+
+    .canvas-shell {
+      width: min(100%, 48vh, 480px);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+    }
+
+    #glyphCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    .toolbar {
+      width: min(100%, 560px);
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .icon-button,
+    .back-button {
+      min-height: 40px;
+      padding: 0 14px;
+      cursor: pointer;
+    }
+
+    .icon-button:hover,
+    .back-button:hover,
+    .sequence-button:hover {
+      border-color: rgba(67, 224, 97, 0.55);
+    }
+
+    .results {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      max-height: 46vh;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(23, 33, 43, 0.65);
+    }
+
+    .matched-name {
+      min-width: 0;
+      font-size: clamp(1rem, 2.4vw, 1.28rem);
+      font-weight: 700;
+      color: var(--green);
+      text-transform: uppercase;
+      overflow-wrap: anywhere;
+    }
+
+    .counter {
+      flex-shrink: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .results-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .empty {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.7;
+      padding: 18px;
+    }
+
+    .sequence-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .sequence-button {
+      width: 100%;
+      min-height: 86px;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .sequence-button.selected {
+      cursor: default;
+      border-color: rgba(67, 224, 97, 0.75);
+      background: rgba(67, 224, 97, 0.1);
+    }
+
+    .glyph-card {
+      width: clamp(50px, 12vw, 72px);
+      flex: 0 0 auto;
+      display: grid;
+      justify-items: center;
+      gap: 4px;
+    }
+
+    .glyph-svg {
+      width: 100%;
+      aspect-ratio: 1;
+      display: block;
+    }
+
+    .glyph-word {
+      width: 100%;
+      min-height: 2.2em;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+      text-align: center;
+      text-transform: uppercase;
+      color: var(--text);
+      font-size: clamp(0.58rem, 1.6vw, 0.72rem);
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+
+    .glyph-card:first-child .glyph-word {
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .arrow {
+      flex: 0 0 auto;
+      color: var(--amber);
+      font-weight: 800;
+      transform: translateY(-0.8rem);
+    }
+
+    .selected-wrap {
+      display: grid;
+      gap: 12px;
+    }
+
+    .selected-actions {
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    @media (max-width: 820px) {
+      body {
+        padding: 10px;
+      }
+
+      .app {
+        min-height: calc(100vh - 20px);
+      }
+
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .length-filters {
+        justify-content: stretch;
+      }
+
+      .length-option {
+        flex: 1 1 0;
+      }
+
+      .length-option span {
+        width: 100%;
+      }
+
+      .canvas-shell {
+        width: min(100%, 74vw, 440px);
+      }
+
+      .results {
+        min-height: 42vh;
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .result-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .sequence-button {
+        overflow-x: auto;
+      }
+
+      .glyph-card {
+        width: 54px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="topbar" aria-label="Glyph practice settings">
+      <div class="brand">
+        <h1>Ingress Glyph Practice</h1>
+        <div id="status" class="status">画出第一个 Glyph，下面会显示可选序列</div>
+      </div>
+
+      <div class="length-filters" aria-label="选择序列长度">
+        <label class="length-option">
+          <input type="checkbox" name="length" value="3">
+          <span>3 图</span>
+        </label>
+        <label class="length-option">
+          <input type="checkbox" name="length" value="4">
+          <span>4 图</span>
+        </label>
+        <label class="length-option">
+          <input type="checkbox" name="length" value="5" checked>
+          <span>5 图</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="practice">
+        <div class="canvas-shell">
+          <canvas id="glyphCanvas" aria-label="Glyph drawing pad"></canvas>
+        </div>
+        <div class="toolbar">
+          <button id="clearButton" class="icon-button" type="button">清空</button>
+        </div>
+      </div>
+
+      <aside class="results" aria-label="Candidate sequences">
+        <div class="result-header">
+          <div id="matchedName" class="matched-name">等待绘制</div>
+          <div id="counter" class="counter">0 条</div>
+        </div>
+        <div id="resultsBody" class="results-body">
+          <div class="empty">按住并连线画出一个 Glyph。识别成功后，这里会列出以它开头的序列。</div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const GLYPHS = [{"name":["Abandon"],"points":"drahlc"},{"name":["Accept","Open"],"points":"hjch"},{"name":["Adapt"],"points":"bhaj"},{"name":["Advance"],"points":"mtl"},{"name":["After"],"points":"drajkd"},{"name":["Again","Repeat"],"points":"ltharj"},{"name":["All"],"points":"mblckdm"},{"name":["Answer"],"points":"trja"},{"name":["Attack","War"],"points":"ltmrk"},{"name":["Avoid"],"points":"bmrdj"},{"name":["Balance","Perfection"],"points":"mahlckja"},{"name":["Barrier"],"points":"majk"},{"name":["Before"],"points":"btahlb"},{"name":["Begin"],"points":"mhcj"},{"name":["Being","Human"],"points":"trjcht"},{"name":["Body"],"points":"trat"},{"name":["Breathe","Live"],"points":"btard"},{"name":["Capture"],"points":"djahlc"},{"name":["Change"],"points":"hacj"},{"name":["Chaos"],"points":"chardmbl"},{"name":["Civilization"],"points":"bthjrd"},{"name":["Clear"],"points":"mac"},{"name":["Clear All"],"points":"mackdmblc"},{"name":["Collective","Shapers"],"points":"lhtmrjk"},{"name":["Complex"],"points":"rtah"},{"name":["Conflict"],"points":"lthjrk"},{"name":["Consequence"],"points":"bthjk"},{"name":["Contemplate"],"points":"rathckdm"},{"name":["Courage"],"points":"lthj"},{"name":["Create"],"points":"lhard"},{"name":["Creativity","Idea","Thought"],"points":"hlbtajkdr"},{"name":["Danger"],"points":"catm"},{"name":["Data"],"points":"mrahc"},{"name":["Death","Die"],"points":"lhajk"},{"name":["Defend"],"points":"bhcjd"},{"name":["Destination"],"points":"dkc"},{"name":["Destiny"],"points":"tarjhc"},{"name":["Destroy"],"points":"btajk"},{"name":["Deteriorate"],"points":"tahl"},{"name":["Difficult"],"points":"drjah"},{"name":["Discover"],"points":"lckd"},{"name":["Distance","Outside"],"points":"lbm"},{"name":["Easy"],"points":"rahc"},{"name":["End"],"points":"macjdm"},{"name":["Enlightened","Enlightenment"],"points":"tratmdkc"},{"name":["Equal"],"points":"htrj"},{"name":["Escape"],"points":"htrdm"},{"name":["Evolution","Progress","Success"],"points":"math"},{"name":["Failure"],"points":"marj"},{"name":["Fear"],"points":"trjd"},{"name":["Field"],"points":"bdjchb"},{"name":["Follow"],"points":"mrdk"},{"name":["Forget"],"points":"hl"},{"name":["Future"],"points":"drjk"},{"name":["Gain"],"points":"bh"},{"name":["Grow"],"points":"lth"},{"name":["Harm"],"points":"kjatmra"},{"name":["Harmony","Peace"],"points":"mtajcharm"},{"name":["Have"],"points":"jahc"},{"name":["Help"],"points":"btahj"},{"name":["Hide"],"points":"trdjh"},{"name":["I","Me"],"points":"trct"},{"name":["Ignore"],"points":"jk"},{"name":["Imperfect"],"points":"atharh"},{"name":["Improve"],"points":"draj"},{"name":["Impure"],"points":"catha"},{"name":["Individual","Self"],"points":"lck"},{"name":["Inside","Not"],"points":"trj"},{"name":["Intelligence"],"points":"lhtard"},{"name":["Interrupt"],"points":"matblhac"},{"name":["Journey"],"points":"dratblc"},{"name":["Key"],"points":"catharja"},{"name":["Knowledge"],"points":"tarct"},{"name":["Lead"],"points":"mblhc"},{"name":["Legacy"],"points":"lhtbmdrjk"},{"name":["Less"],"points":"tar"},{"name":["Liberate"],"points":"ltardm"},{"name":["Lie"],"points":"htajra"},{"name":["Link"],"points":"bd"},{"name":["Live Again","Reincarnate"],"points":"lthard"},{"name":["Lose"],"points":"dj"},{"name":["Message"],"points":"djatl"},{"name":["Mind"],"points":"tacht"},{"name":["More"],"points":"haj"},{"name":["Mystery"],"points":"htrmtb"},{"name":["N'Zeer"],"points":"camtarm"},{"name":["Nature"],"points":"lhtrjk"},{"name":["Nemesis"],"points":"bdrahlkjatb"},{"name":["New"],"points":"rjk"},{"name":["Nourish"],"points":"ahlca"},{"name":["Now","Present"],"points":"thjr"},{"name":["Old"],"points":"bth"},{"name":["Open All","Openall"],"points":"chjckdmblc"},{"name":["Open All","Openall"],"points":"chjckdmblc"},{"name":["Osiris"],"points":"tratmrklt"},{"name":["Past"],"points":"bthl"},{"name":["Path"],"points":"mahl"},{"name":["Perspective"],"points":"lharmtajk"},{"name":["Portal"],"points":"btrdkjhlb"},{"name":["Potential"],"points":"majkd"},{"name":["Presence"],"points":"htarjhcj"},{"name":["Pure"],"points":"majra"},{"name":["Pursue"],"points":"btmr"},{"name":["Question"],"points":"htrm"},{"name":["React"],"points":"rtajk"},{"name":["Rebel"],"points":"bhardk"},{"name":["Recharge","Repair"],"points":"mbtam"},{"name":["Refresh"],"points":"lbtajkdrahl"},{"name":["Resistance","Struggle"],"points":"hcamtr"},{"name":["Restraint"],"points":"btajkc"},{"name":["Retreat"],"points":"mrk"},{"name":["Safety"],"points":"ltrk"},{"name":["Save"],"points":"hajd"},{"name":["Search"],"points":"arthj"},{"name":["See"],"points":"mt"},{"name":["Separate"],"points":"btharjk"},{"name":["Share"],"points":"kjhlc"},{"name":["Shield"],"points":"mthcjrm"},{"name":["Simple"],"points":"hj"},{"name":["Soul"],"points":"racjr"},{"name":["Speed"],"points":"rmtajch"},{"name":["Stability","Stay"],"points":"lhjk"},{"name":["Star"],"points":"macatbtajkjardrahlha"},{"name":["Strong"],"points":"thjrt"},{"name":["Technology"],"points":"drahtajk"},{"name":["Them"],"points":"mhj"},{"name":["Toast"],"points":"bdrkltb"},{"name":["Together"],"points":"lharta"},{"name":["Truth"],"points":"htajrah"},{"name":["Unbounded"],"points":"arthjdmblck"},{"name":["Us","We"],"points":"trc"},{"name":["Use"],"points":"ajd"},{"name":["Victory"],"points":"mtcrm"},{"name":["Want"],"points":"lhcj"},{"name":["Weak"],"points":"btrj"},{"name":["Worth"],"points":"bhajd"},{"name":["XM"],"points":"ahtrja"},{"name":["You","Your"],"points":"mhjm"}];
+    const SEQUENCES = [["Abandon","Fear","Together"],["Accept","Human","Weak"],["Advance","Pure","Truth"],["All","Civilization","Chaos"],["Answer","N'Zeer","Question"],["Attack","Capture","Link"],["Attack","Shapers","Chaos"],["Avoid","Chaos","Soul"],["Avoid","Destiny","Lie"],["Avoid","Pure","Chaos"],["Begin","New","Struggle"],["Capture","Victory","Together"],["Change","Perspective","Technology"],["Clear","Your","Mind"],["Conflict","Grow","War"],["Courage","Destiny","Rebel"],["Create","Truth","Legacy"],["Danger","Change","Past"],["Defend","Human","Lie"],["Destroy","Difficult","Barrier"],["Destroy","Impure","Truth"],["Destroy","Portal","Shield"],["Discover","Resistance","Truth"],["Discover","Shapers","Enlightenment"],["Discover","Shapers","Lie"],["Discover","Shapers","Message"],["Escape","Impure","Evolution"],["Escape","Impure","Future"],["Fear","Imperfect","Technology"],["Field","All","Mind"],["Field","Before","Civilization"],["Field","Nourish","Civilization"],["Follow","Pure","Journey"],["Gain","More","Knowledge"],["Grow","Shapers","Presence"],["Harm","Danger","Avoid"],["Help","Us","All"],["Human","Gain","Safety"],["Human","Knowledge","Legacy"],["Improve","Advance","Present"],["Improve","Human","Shapers"],["Inside","XM","Truth"],["Interrupt","Enlightened","Technology"],["Journey","Inside","Soul"],["Journey","Link","Portal"],["Key","Potential","Link"],["Lead","Enlightenment","Civilization"],["Liberate","Human","Future"],["Lie","Equal","Future"],["N'Zeer","Technology","Perfection"],["Peace","Simple","Journey"],["Peace","Worth","More"],["Perfection","Path","Peace"],["Pursue","Pure","Body"],["Question","Hide","Truth"],["Question","Potential","Mystery"],["React","Impure","Civilization"],["Repair","Portal","Shield"],["Retreat","Search","Safety"],["Share","Enlightenment","Knowledge"],["Share","Resistance","Message"],["Star","Courage","Difficult"],["Technology","Capture","Victory"],["Together","End","Mystery"],["War","Destroy","Future"],["XM","Grow","Creativity"],["XM","Key","Knowledge"],["XM","Nourish","Civilization"],["You","Hide","Chaos"],["Abandon","Fear","Defend","Future"],["Abandon","Fear","See","Future"],["Adapt","Thought","Discover","Evolution"],["All","Chaos","Inside","Body"],["Attack","Weak","Shapers","Lie"],["Before","Mystery","After","Knowledge"],["Begin","Human","Legacy","Now"],["Begin","Journey","Breathe","XM"],["Breathe","Again","Journey","Again"],["Breathe","Nature","Perfection","Harmony"],["Capture","Fear","Discover","Courage"],["Change","Future","Capture","Destiny"],["Change","Human","Potential","Use"],["Change","Perspective","Begin","New"],["Chaos","Barrier","Shapers","Portal"],["Clear","Mind","Open","Mind"],["Clear All","Open All","Discover","Truth"],["Contemplate","Chaos","Before","Link"],["Contemplate","Complex","Shapers","Civilization"],["Contemplate","Self","Path","Truth"],["Courage","Attack","Shapers","Future"],["Create","Distance","Impure","Path"],["Create","Future","Not","War"],["Create","New","Portal","Potential"],["Defend","Field","Gain","Victory"],["Defend","Human","N'Zeer","Lie"],["Defend","Message","Answer","Idea"],["Destroy","Destiny","Human","Lie"],["Destroy","Field","Capture","Key"],["Deteriorate","Human","Weak","Rebel"],["Difficult","Knowledge","Advance","Mind"],["Enlightened","Capture","Victory","Together"],["Escape","Before","Pure","Death"],["Escape","Simple","Human","Future"],["Fear","Imperfect","n'Zeer","Technology"],["Follow","Shapers","Portal","Message"],["Forget","Conflict","Accept","War"],["Harmony","Path","Nourish","Present"],["Help","Enlightened","Strong","Victory"],["Help","Gain","Create","Pursue"],["Help","Resistance","Strong","Victory"],["Help","Us","Save","Us"],["Hide","Chaos","Inside","Body"],["Hide","Impure","Human","Thought"],["Human","Have","Impure","Civilization"],["Human","Past","Present","Future"],["Human","Soul","Strong","Pure"],["Ignore","Human","Chaos","Lie"],["Improve","Body","Mind","Soul"],["Improve","Body","Pursue","Journey"],["Inside","Mind","Journey","Perfection"],["Interrupt","Message","Gain","Advance"],["Journey","Inside","Improve","Soul"],["Knowledge","Help","Gain","Victory"],["Lead","Pursue","React","Defend"],["Less","Shield","More","Harm"],["Less","Soul","More","Mind"],["Less","Truth","More","Chaos"],["Liberate","XM","Portal","Together"],["Link","Key","Field","Success"],["Live Again","Die","Again","Evolution"],["Lose","Danger","Gain","Safety"],["Nourish","XM","Create","Thought"],["N'Zeer","Legacy","Create","Future"],["N'Zeer","Shapers","Struggle","Knowledge"],["N'Zeer","Technology","Mind","Evolution"],["N'Zeer","Technology","Perfection","Truth"],["Open All","Link","Create","Star"],["Past","Again","Present","Again"],["Path","Restraint","Strong","Safety"],["Portal","Change","Civilization","End"],["Portal","Die","Civilization","Die"],["Portal","Have","Truth","Data"],["Question","Truth","Gain","Future"],["Restraint","Fear","Avoid","Danger"],["Restraint","Path","Gain","Harmony"],["Search","Data","Discover","Path"],["Search","Truth","Save","Civilization"],["Search","XM","Distance","Destination"],["Search","XM","Save","Portal"],["See","Truth","See","Future"],["Separate","Weak","Ignore","Truth"],["Shapers","Chaos","Pure","Harm"],["Shapers","Message","End","Civilization"],["Shapers","Mind","Complex","Harmony"],["Shapers","Past","Present","Future"],["Shapers","See","Potential","Evolution"],["Share","Key","Save","All"],["Shield","Defend","Human","Civilization"],["Simple","Civilization","Impure","Weak"],["Simple","Message","Complex","Idea"],["Simple","Truth","Breathe","Nature"],["Soul","Rebel","Human","Die"],["Stay","Together","Defend","Truth"],["Strong","Idea","Pursue","Truth"],["Strong","Portal","Strong","Field"],["Strong","Together","Avoid","War"],["Struggle","Defend","Shapers","Danger"],["Struggle","Improve","Human","Soul"],["Together","Discover","Harmony","Equal"],["Truth","Idea","Discover","XM"],["War","Not","Worth","Consequence"],["Weak","Portal","Weak","Field"],["XM","Die","Chaos","Live"],["XM","Nourish","Strong","Creativity"],["XM","Share","Your","Creativity"],["Abandon","All","Technology","Save","Us"],["Abandon","Fear","Defend","Future","Together"],["Abandon","Fear","See","Future","Destination"],["Adapt","Thought","Discover","Simple","Success"],["Advance","Civilization","Pursue","Shapers","Path"],["After","Imperfect","Human","Presence","Consequence"],["Answer","N'Zeer","Question","Potential","Knowledge"],["Answer","Question","Discover","Difficult","Truth"],["Avoid","Chaos","Avoid","Shapers","Lie"],["Avoid","Chaos","Repair","Potential","War"],["Avoid","Perfection","Stay","Human","Self"],["Begin","Journey","Breathe","XM","Evolution"],["Breathe","Inside","XM","Lose","Self"],["Capture","Portal","Defend","Portal","Courage"],["Change","Perspective","Begin","New","Struggle"],["Chaos","War","Conflict","Discover","Peace"],["Civilization","Die","New","Civilization","Begin"],["Clear","Mind","Liberate","Barrier","Body"],["Clear","Your","Mind","Creativity","Grow"],["Clear","Your","Mind","More","Balance"],["Clear All","Idea","Past","Present","Future"],["Contemplate","Field","Pursue","Human","Legacy"],["Contemplate","Future","Not","Shapers","Path"],["Contemplate","Restraint","Discover","More","Courage"],["Courage","Attack","Shapers","Portal","Together"],["Create","New","Future","See","All"],["Create","New","Portal","Potential","Future"],["Create","Pure","Future","Human","Civilization"],["Create","Pure","Future","Not","War"],["Create","Separate","Path","End","Journey"],["Defend","Destiny","Defend","Human","Civilization"],["Defend","Human","Civilization","XM","Message"],["Defend","Human","Civilization","Portal","Data"],["Defend","Human","Civilization","Shapers","Lie"],["Defend","Human","Civilization","Shapers","Portal"],["Destroy","Civilization","End","Conflict","War"],["Destroy","Lie","Not","Gain","Soul"],["Distance","Self","Avoid","Human","Lie"],["Easy","Path","Future","Follow","Shapers"],["End","Old","Civilization","Create","New"],["Escape","Before","Death","End","All"],["Escape","Body","Journey","Outside","Present"],["Escape","Body","Mind","Self","Want"],["Field","Together","Improve","Human","Mind"],["Forget","War","See","Distance","Harmony"],["Forget","Past","See","Present","Danger"],["Gain","Truth","Open","Human","Soul"],["Grow","Unbounded","Create","New","Future"],["Have","Harmony","Together","End","Mystery"],["Harm","Progress","Pursue","More","War"],["Help","Enlightenment","Capture","All","Portal"],["Help","Gain","Knowledge","Inside","Resistance"],["Help","Human","Civilization","Pursue","Destiny"],["Help","Us","Progress","Strong","Victory"],["Help","Us","Save","Us","All"],["Help","Us","Save","Us","Destroy"],["Help","Resistance","Capture","All","Portal"],["Hide","Struggle","Advance","Strong","Together"],["Hide","Them","Inside","Complex","Intelligence"],["Human","Evolution","Create","More","Field"],["Human","Legacy","Abandon","Old","Knowledge"],["Human","Legacy","Have","Abandon","Now"],["Human","Not","Together","Civilization","Deteriorate"],["Human","Shapers","Together","Create","Destiny"],["Imperfect","Message","Begin","Human","Chaos"],["Imperfect","Truth","Accept","Complex","Answer"],["Imperfect","Civilization","Lose","Key","Data"],["Imperfect","XM","Message","Human","Chaos"],["Inside","Mind","Inside","Soul","Harmony"],["Interrupt","Enlightened","Technology","Capture","Victory"],["Interrupt","Message","Lose","Collective","Potential"],["Liberate","Portal","Liberate","Human","Mind"],["Liberate","Self","Liberate","Human","Civilization"],["Link","All","Portal","Create","Field"],["Live Again","Die","Repeat","Evolution","Future"],["Lose","Shapers","Message","Gain","Chaos"],["Mind","Body","Soul","Pure","Human"],["Mind","Technology","Capture","Human","Soul"],["More","Data","Gain","Portal","Advance"],["Mystery","Before","Pure","Knowledge","After"],["N'Zeer","Hide","Us","Equal","Them"],["Nourish","Portal","Avoid","Weak","Field"],["Old","Nature","Less","Strong","Present"],["Past","Chaos","Create","Future","Harmony"],["Past","Path","Create","Future","Journey"],["Portal","Barrier","Defend","Human","Shapers"],["Portal","Create","Danger","Pursue","Safety"],["Portal","Improve","Human","Future","Civilization"],["Portal","Potential","Help","Human","Future"],["Presence","Lie","Equal","Future","Consequence"],["Present","Chaos","Create","Future","Civilization"],["Present","Struggle","Worth","Strong","Victory"],["Pure","Human","Failure","Now","Chaos"],["Pursue","Conflict","War","Advance","Chaos"],["Pursue","Path","Outside","Shapers","Lie"],["Question","Less","Forget","All","Lie"],["Question","Potential","Mystery","Journey","Grow"],["React","Rebel","Question","Shapers","Lie"],["Rebel","Thought","Evolution","Destiny","Now"],["Repair","Present","Repair","Human","Soul"],["Repair","Soul","Less","Human","Harm"],["Save","Human","Civilization","Destroy","Portal"],["Search","Destiny","Create","Pure","Future"],["See","Truth","See","Future","Begin"],["Separate","Mind","Body","Discover","Enlightenment"],["Separate","Truth","Lie","Shapers","Future"],["Shapers","Lead","Human","Complex","Journey"],["Shapers","Portal","Data","Create","Chaos"],["Shapers","Portal","Message","Destroy","Civilization"],["Shapers","See","Complex","Path","Destiny"],["Shapers","Want","Human","Mind","Future"],["Shield","Mind","Clear All","Chaos","XM"],["Simple","Old","Truth","Journey","Inside"],["Simple","Truth","All","Human","Star"],["Simple","Truth","Forget","Easy","Success"],["Simple","Truth","Shapers","Destroy","Civilization"],["Stay","Strong","Together","Defend","Resistance"],["Strong","Together","War","Together","Chaos"],["Strong","Together","War","Together","Destiny"],["Technology","Intelligence","See","All","Unbounded"],["Together","Progress","Recharge","Present","Journey"],["Use","Key","Together","Create","Star"],["Use","Mind","Use","Courage","Change"],["Use","Restraint","Follow","Easy","Path"],["Want","New","Destination","Ignore","Consequence"],["Want","Truth","Pursue","Difficult","Path"],["Weak","Human","Destiny","Destroy","Civilization"],["XM","Create","Complex","Human","Destiny"],["XM","Path","Future","Destiny","Harmony"],["XM","Portal","Share","Your","Creativity"],["You","Hide","Chaos","Inside","Body"],["Your","Message","Clear","Use","Chaos"],["Resistance","Gain","All","Victory","Osiris"],["Human","Potential","Evolution","Unbounded"],["Escape","Speed","Barrier"],["Gain","More","Speed"],["Speed","Equal","Key"],["More","Speed","More","Potential"],["Use","Speed","Pure","Key"],["Self","Less","Together","Speed"],["Refresh","Nourish","Recharge"],["Refresh","Change","Perspective"],["Refresh","Old","Discover","New"],["Refresh","Technology","Gain","More","Speed"],["Refresh","Mind","Refresh","Body"],["Save","Before","Refresh"],["You","Refresh","Us"],["Abandon","Restraint","Pursue","Speed","Together"],["Pursue","Human","Potential","Evolution","Unbounded"],["Pursue","Human","Potential","Evolution"],["Pursue","Human","Potential"]];
+
+    const NODE_KEYS = ['m', 'd', 'k', 'c', 'l', 'b', 'r', 'j', 'h', 't', 'a'];
+    const COLORS = {
+      bgHex: 'rgba(6, 17, 25, 0.92)',
+      hexBorder: 'rgba(69, 217, 255, 0.38)',
+      nodeDefault: 'rgba(238, 245, 242, 0.36)',
+      nodeActive: '#43e061',
+      line: '#43e061',
+      lineGlow: 'rgba(67, 224, 97, 0.65)',
+      accent: '#f0b94a'
+    };
+
+    const glyphByName = new Map();
+    const glyphsWithSegments = GLYPHS.map((glyph) => {
+      const copy = { ...glyph, segments: getSegmentsFromPath(glyph.points.split('')) };
+      copy.name.forEach((name) => glyphByName.set(name, copy));
+      return copy;
+    });
+
+    const state = {
+      matchedGlyph: null,
+      candidates: [],
+      selectedSequence: null
+    };
+
+    const elements = {
+      canvas: document.getElementById('glyphCanvas'),
+      status: document.getElementById('status'),
+      clearButton: document.getElementById('clearButton'),
+      matchedName: document.getElementById('matchedName'),
+      counter: document.getElementById('counter'),
+      resultsBody: document.getElementById('resultsBody'),
+      lengthInputs: Array.from(document.querySelectorAll('input[name="length"]'))
+    };
+
+    class GlyphPad {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.nodes = {};
+        this.isDrawing = false;
+        this.drawnPath = [];
+        this.currentPointer = null;
+        this.hoveredNode = null;
+
+        this.resize();
+        this.bindEvents();
+        this.draw();
+      }
+
+      resize() {
+        const rect = this.canvas.getBoundingClientRect();
+        const size = Math.max(260, Math.floor(Math.min(rect.width || 400, rect.height || 400)));
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = Math.floor(size * dpr);
+        this.canvas.height = Math.floor(size * dpr);
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.width = size;
+        this.height = size;
+        this.cx = size / 2;
+        this.cy = size / 2;
+        this.radius = size * 0.43;
+        this.hitRadius = Math.max(18, size * 0.055);
+        this.setupNodes();
+        this.draw();
+      }
+
+      setupNodes() {
+        const k = 0.38;
+        const outer = k * 2;
+        const inner = k;
+        const cos = Math.cos(Math.PI / 6);
+        const sin = Math.sin(Math.PI / 6);
+
+        this.nodes = {
+          m: { dx: 0, dy: -this.radius * outer },
+          d: { dx: cos * this.radius * outer, dy: -sin * this.radius * outer },
+          k: { dx: cos * this.radius * outer, dy: sin * this.radius * outer },
+          c: { dx: 0, dy: this.radius * outer },
+          l: { dx: -cos * this.radius * outer, dy: sin * this.radius * outer },
+          b: { dx: -cos * this.radius * outer, dy: -sin * this.radius * outer },
+          r: { dx: cos * this.radius * inner, dy: -sin * this.radius * inner },
+          j: { dx: cos * this.radius * inner, dy: sin * this.radius * inner },
+          h: { dx: -cos * this.radius * inner, dy: sin * this.radius * inner },
+          t: { dx: -cos * this.radius * inner, dy: -sin * this.radius * inner },
+          a: { dx: 0, dy: 0 }
+        };
+
+        for (const key of NODE_KEYS) {
+          this.nodes[key].x = this.cx + this.nodes[key].dx;
+          this.nodes[key].y = this.cy + this.nodes[key].dy;
+        }
+      }
+
+      bindEvents() {
+        this.canvas.addEventListener('pointerdown', (event) => {
+          event.preventDefault();
+          this.canvas.setPointerCapture(event.pointerId);
+          this.isDrawing = true;
+          this.drawnPath = [];
+          this.currentPointer = this.getPointerPos(event);
+          this.checkNodeCollision(this.currentPointer);
+          setDrawingState();
+          this.draw();
+        });
+
+        this.canvas.addEventListener('pointermove', (event) => {
+          if (!this.isDrawing) return;
+          event.preventDefault();
+          this.currentPointer = this.getPointerPos(event);
+          this.checkNodeCollision(this.currentPointer);
+          this.draw();
+        });
+
+        this.canvas.addEventListener('pointerup', (event) => this.endDrawing(event));
+        this.canvas.addEventListener('pointercancel', (event) => this.endDrawing(event));
+
+        window.addEventListener('resize', () => {
+          window.requestAnimationFrame(() => this.resize());
+        });
+      }
+
+      getPointerPos(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
+      }
+
+      checkNodeCollision(pos) {
+        this.hoveredNode = null;
+
+        for (const [key, node] of Object.entries(this.nodes)) {
+          const distance = Math.hypot(node.x - pos.x, node.y - pos.y);
+          if (distance <= this.hitRadius) {
+            this.hoveredNode = key;
+            if (this.drawnPath.length === 0 || this.drawnPath[this.drawnPath.length - 1] !== key) {
+              this.drawnPath.push(key);
+            }
+            break;
+          }
+        }
+      }
+
+      endDrawing(event) {
+        if (!this.isDrawing) return;
+        event.preventDefault();
+        this.isDrawing = false;
+        this.currentPointer = null;
+        this.hoveredNode = null;
+        this.draw();
+        recognizeGlyph(this.drawnPath);
+      }
+
+      clear() {
+        this.isDrawing = false;
+        this.drawnPath = [];
+        this.currentPointer = null;
+        this.hoveredNode = null;
+        this.draw();
+      }
+
+      draw() {
+        const ctx = this.ctx;
+        if (!ctx) return;
+        ctx.clearRect(0, 0, this.width, this.height);
+        this.drawHexagon();
+
+        if (this.drawnPath.length > 0) {
+          ctx.beginPath();
+          ctx.moveTo(this.nodes[this.drawnPath[0]].x, this.nodes[this.drawnPath[0]].y);
+
+          for (let i = 1; i < this.drawnPath.length; i += 1) {
+            ctx.lineTo(this.nodes[this.drawnPath[i]].x, this.nodes[this.drawnPath[i]].y);
+          }
+
+          if (this.isDrawing && this.currentPointer) {
+            ctx.lineTo(this.currentPointer.x, this.currentPointer.y);
+          }
+
+          ctx.strokeStyle = COLORS.line;
+          ctx.lineWidth = Math.max(4, this.width * 0.011);
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.shadowColor = COLORS.lineGlow;
+          ctx.shadowBlur = 14;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+
+        for (const [key, node] of Object.entries(this.nodes)) {
+          const isActive = this.drawnPath.includes(key);
+          const isHovered = this.hoveredNode === key;
+          ctx.beginPath();
+          ctx.fillStyle = isActive || isHovered ? COLORS.nodeActive : COLORS.nodeDefault;
+          ctx.shadowColor = isActive ? COLORS.lineGlow : 'transparent';
+          ctx.shadowBlur = isActive ? 8 : 0;
+          ctx.arc(node.x, node.y, isActive ? 6 : 4.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      drawHexagon() {
+        const ctx = this.ctx;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i += 1) {
+          const angle = (Math.PI / 3) * i - Math.PI / 2;
+          const x = this.cx + this.radius * Math.cos(angle);
+          const y = this.cy + this.radius * Math.sin(angle);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = COLORS.bgHex;
+        ctx.fill();
+        ctx.strokeStyle = COLORS.hexBorder;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    const pad = new GlyphPad(elements.canvas);
+
+    elements.clearButton.addEventListener('click', () => {
+      pad.clear();
+      state.matchedGlyph = null;
+      state.candidates = [];
+      state.selectedSequence = null;
+      renderResults();
+    });
+
+    elements.lengthInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        if (selectedLengths().length === 0) {
+          input.checked = true;
+        }
+        if (state.matchedGlyph) {
+          updateCandidates();
+        }
+      });
+    });
+
+    function selectedLengths() {
+      return elements.lengthInputs
+        .filter((input) => input.checked)
+        .map((input) => Number(input.value));
+    }
+
+    function setDrawingState() {
+      state.selectedSequence = null;
+      elements.status.textContent = '正在绘制...';
+      elements.matchedName.textContent = '绘制中';
+      elements.counter.textContent = '0 条';
+      elements.resultsBody.innerHTML = '<div class="empty">松开后会识别当前 Glyph。</div>';
+    }
+
+    function recognizeGlyph(path) {
+      if (path.length < 2) {
+        state.matchedGlyph = null;
+        state.candidates = [];
+        state.selectedSequence = null;
+        renderResults();
+        return;
+      }
+
+      const userSegments = getSegmentsFromPath(path);
+      const match = glyphsWithSegments.find((glyph) =>
+        glyph.segments.length === userSegments.length &&
+        glyph.segments.every((segment, index) => segment === userSegments[index])
+      );
+
+      state.matchedGlyph = match || null;
+      state.selectedSequence = null;
+      updateCandidates();
+    }
+
+    function updateCandidates() {
+      const lengths = selectedLengths();
+      if (!state.matchedGlyph) {
+        state.candidates = [];
+        renderResults();
+        return;
+      }
+
+      const names = new Set(state.matchedGlyph.name);
+      state.candidates = SEQUENCES.filter((sequence) =>
+        lengths.includes(sequence.length) && names.has(sequence[0])
+      );
+      renderResults();
+    }
+
+    function renderResults() {
+      if (state.selectedSequence) {
+        elements.matchedName.textContent = state.selectedSequence.join(' / ');
+        elements.counter.textContent = state.selectedSequence.length + ' 图';
+        elements.status.textContent = '已锁定候选序列';
+        elements.resultsBody.innerHTML =
+          '<div class="selected-wrap">' +
+            '<div class="selected-actions">' +
+              '<button id="backButton" class="back-button" type="button">回退</button>' +
+            '</div>' +
+            sequenceHtml(state.selectedSequence, true) +
+          '</div>';
+        document.getElementById('backButton').addEventListener('click', () => {
+          state.selectedSequence = null;
+          renderResults();
+        });
+        return;
+      }
+
+      if (!state.matchedGlyph) {
+        elements.matchedName.textContent = '等待绘制';
+        elements.counter.textContent = '0 条';
+        elements.status.textContent = '画出第一个 Glyph，下面会显示可选序列';
+        elements.resultsBody.innerHTML = '<div class="empty">按住并连线画出一个 Glyph。识别成功后，这里会列出以它开头的序列。</div>';
+        return;
+      }
+
+      const name = state.matchedGlyph.name.join(' / ');
+      elements.matchedName.textContent = name;
+      elements.counter.textContent = state.candidates.length + ' 条';
+      elements.status.textContent = state.candidates.length
+        ? '识别为 ' + name + '，点击一个序列锁定'
+        : '识别为 ' + name + '，当前长度筛选没有候选';
+
+      if (state.candidates.length === 0) {
+        elements.resultsBody.innerHTML = '<div class="empty">没有符合当前 3/4/5 图筛选的候选序列。</div>';
+        return;
+      }
+
+      elements.resultsBody.innerHTML =
+        '<div class="sequence-list">' +
+        state.candidates.map((sequence, index) =>
+          '<button class="sequence-button" type="button" data-index="' + index + '">' +
+            sequenceInnerHtml(sequence) +
+          '</button>'
+        ).join('') +
+        '</div>';
+
+      elements.resultsBody.querySelectorAll('.sequence-button').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.selectedSequence = state.candidates[Number(button.dataset.index)];
+          renderResults();
+        });
+      });
+    }
+
+    function getSegmentsFromPath(path) {
+      const segments = new Set();
+      for (let i = 0; i < path.length - 1; i += 1) {
+        const a = path[i];
+        const b = path[i + 1];
+        segments.add(a < b ? a + b : b + a);
+      }
+      return Array.from(segments).sort();
+    }
+
+    function sequenceHtml(sequence, selected = false) {
+      return '<div class="sequence-button ' + (selected ? 'selected' : '') + '">' + sequenceInnerHtml(sequence) + '</div>';
+    }
+
+    function sequenceInnerHtml(sequence) {
+      return sequence.map((name, index) => {
+        const separator = index === sequence.length - 1 ? '' : '<span class="arrow">›</span>';
+        return glyphCardHtml(name) + separator;
+      }).join('');
+    }
+
+    function glyphCardHtml(name) {
+      return '<div class="glyph-card">' +
+        glyphSvg(name) +
+        '<div class="glyph-word">' + escapeHtml(name) + '</div>' +
+      '</div>';
+    }
+
+    function glyphSvg(name) {
+      const glyph = glyphByName.get(name);
+      if (!glyph) return '<svg class="glyph-svg" viewBox="0 0 100 100" aria-hidden="true"></svg>';
+
+      const points = glyph.points.split('');
+      const nodes = thumbnailNodes();
+      const path = points
+        .filter((point) => nodes[point])
+        .map((point, index) => (index === 0 ? 'M' : 'L') + ' ' + nodes[point].x.toFixed(2) + ' ' + nodes[point].y.toFixed(2))
+        .join(' ');
+      const hex = hexPath(50, 50, 39);
+
+      return '<svg class="glyph-svg" viewBox="0 0 100 100" aria-hidden="true">' +
+        '<path d="' + hex + '" fill="rgba(6, 17, 25, 0.92)" stroke="rgba(69, 217, 255, 0.38)" stroke-width="2"></path>' +
+        '<path d="' + path + '" fill="none" stroke="#43e061" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>' +
+      '</svg>';
+    }
+
+    function thumbnailNodes() {
+      const r = 40;
+      const cx = 50;
+      const cy = 50;
+      const k = 0.38;
+      const outer = k * 2;
+      const inner = k;
+      const cos = Math.cos(Math.PI / 6);
+      const sin = Math.sin(Math.PI / 6);
+
+      return {
+        m: { x: cx, y: cy - r * outer },
+        d: { x: cx + cos * r * outer, y: cy - sin * r * outer },
+        k: { x: cx + cos * r * outer, y: cy + sin * r * outer },
+        c: { x: cx, y: cy + r * outer },
+        l: { x: cx - cos * r * outer, y: cy + sin * r * outer },
+        b: { x: cx - cos * r * outer, y: cy - sin * r * outer },
+        r: { x: cx + cos * r * inner, y: cy - sin * r * inner },
+        j: { x: cx + cos * r * inner, y: cy + sin * r * inner },
+        h: { x: cx - cos * r * inner, y: cy + sin * r * inner },
+        t: { x: cx - cos * r * inner, y: cy - sin * r * inner },
+        a: { x: cx, y: cy }
+      };
+    }
+
+    function hexPath(cx, cy, r) {
+      let path = '';
+      for (let i = 0; i < 6; i += 1) {
+        const angle = (Math.PI / 3) * i - Math.PI / 2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        path += (i === 0 ? 'M' : 'L') + ' ' + x.toFixed(2) + ' ' + y.toFixed(2) + ' ';
+      }
+      return path + 'Z';
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[char]));
+    }
+  </script>
+</body>
+</html>
