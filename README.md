@@ -1,3 +1,5 @@
+URL:https://wallnutttttts.github.io/ingress_glyph_tools/
+
 # Ingress Glyph Practice
 
 A standalone HTML practice page for Ingress Glyph sequences.
