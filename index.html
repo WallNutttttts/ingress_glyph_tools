@@ -110,7 +110,8 @@
     .length-option span,
     .icon-button,
     .sequence-button,
-    .back-button {
+    .back-button,
+    .speak-button {
       border: 1px solid var(--line);
       background: rgba(23, 33, 43, 0.92);
       border-radius: 8px;
@@ -183,7 +184,8 @@
     }
 
     .icon-button,
-    .back-button {
+    .back-button,
+    .speak-button {
       min-height: 40px;
       padding: 0 14px;
       cursor: pointer;
@@ -191,8 +193,29 @@
 
     .icon-button:hover,
     .back-button:hover,
+    .speak-button:hover,
     .sequence-button:hover {
       border-color: rgba(67, 224, 97, 0.55);
+    }
+
+    .speak-button {
+      width: 42px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      line-height: 1;
+    }
+
+    .speak-button.active {
+      color: #051008;
+      background: var(--green);
+      border-color: rgba(67, 224, 97, 0.8);
+      box-shadow: 0 0 18px rgba(67, 224, 97, 0.24);
+    }
+
+    .speak-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
 
     .results {
@@ -314,6 +337,24 @@
     .selected-actions {
       display: flex;
       justify-content: flex-start;
+      gap: 8px;
+    }
+
+    .credit-footer {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      text-align: center;
+      padding: 2px 10px 0;
+    }
+
+    .credit-footer a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+
+    .credit-footer a:hover {
+      text-decoration: underline;
     }
 
     @media (max-width: 820px) {
@@ -412,6 +453,11 @@
         </div>
       </aside>
     </section>
+
+    <footer class="credit-footer">
+      Glyph data and interaction concept adapted from
+      <a href="https://github.com/MarsianCreator/INGRESS-GUIDE" target="_blank" rel="noopener noreferrer">MarsianCreator/INGRESS-GUIDE</a>.
+    </footer>
   </main>
 
   <script>
@@ -439,7 +485,8 @@
     const state = {
       matchedGlyph: null,
       candidates: [],
-      selectedSequence: null
+      selectedSequence: null,
+      speechEnabled: false
     };
 
     const elements = {
@@ -644,9 +691,11 @@
 
     elements.clearButton.addEventListener('click', () => {
       pad.clear();
+      stopSpeech();
       state.matchedGlyph = null;
       state.candidates = [];
       state.selectedSequence = null;
+      state.speechEnabled = false;
       renderResults();
     });
 
@@ -668,7 +717,9 @@
     }
 
     function setDrawingState() {
+      stopSpeech();
       state.selectedSequence = null;
+      state.speechEnabled = false;
       elements.status.textContent = '正在绘制...';
       elements.matchedName.textContent = '绘制中';
       elements.counter.textContent = '0 条';
@@ -712,6 +763,7 @@
 
     function renderResults() {
       if (state.selectedSequence) {
+        const speechSupported = supportsSpeech();
         elements.matchedName.textContent = state.selectedSequence.join(' / ');
         elements.counter.textContent = state.selectedSequence.length + ' 图';
         elements.status.textContent = '已锁定候选序列';
@@ -719,13 +771,29 @@
           '<div class="selected-wrap">' +
             '<div class="selected-actions">' +
               '<button id="backButton" class="back-button" type="button">回退</button>' +
+              '<button id="speakButton" class="speak-button ' + (state.speechEnabled ? 'active' : '') + '" type="button" aria-label="' + (state.speechEnabled ? 'Stop reading sequence' : 'Read sequence aloud') + '"' + (speechSupported ? '' : ' disabled title="Speech synthesis is not supported in this browser"') + '>' + (state.speechEnabled ? '🔊' : '🔇') + '</button>' +
             '</div>' +
             sequenceHtml(state.selectedSequence, true) +
           '</div>';
         document.getElementById('backButton').addEventListener('click', () => {
+          state.speechEnabled = false;
+          stopSpeech();
           state.selectedSequence = null;
           renderResults();
         });
+        const speakButton = document.getElementById('speakButton');
+        if (speakButton && speechSupported) {
+          speakButton.addEventListener('click', () => {
+            state.speechEnabled = !state.speechEnabled;
+            if (!state.speechEnabled) {
+              stopSpeech();
+            }
+            renderResults();
+          });
+          if (state.speechEnabled) {
+            speakSequence(state.selectedSequence);
+          }
+        }
         return;
       }
 
@@ -846,6 +914,49 @@
         path += (i === 0 ? 'M' : 'L') + ' ' + x.toFixed(2) + ' ' + y.toFixed(2) + ' ';
       }
       return path + 'Z';
+    }
+
+    function supportsSpeech() {
+      return 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+    }
+
+    function speakSequence(sequence) {
+      if (!supportsSpeech() || !sequence) return;
+
+      stopSpeech();
+      const spokenText = sequence.map(pronounceGlyphWord).join(', ');
+      const utterance = new SpeechSynthesisUtterance(spokenText);
+      utterance.lang = 'en-US';
+      utterance.rate = 0.86;
+      utterance.pitch = 1;
+      utterance.onend = () => {
+        if (state.speechEnabled) {
+          state.speechEnabled = false;
+          renderResults();
+        }
+      };
+      utterance.onerror = () => {
+        state.speechEnabled = false;
+        renderResults();
+      };
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function stopSpeech() {
+      if (supportsSpeech()) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    function pronounceGlyphWord(word) {
+      const pronunciations = {
+        XM: 'X M',
+        "N'Zeer": 'en zeer',
+        "n'Zeer": 'en zeer',
+        Openall: 'Open All'
+      };
+
+      return pronunciations[word] || word;
     }
 
     function escapeHtml(value) {
