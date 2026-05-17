@@ -466,10 +466,14 @@
     </section>
 
     <footer class="credit-footer">
-      Glyph data and interaction concept adapted from
-      <a href="https://github.com/MarsianCreator/INGRESS-GUIDE" target="_blank" rel="noopener noreferrer">MarsianCreator/INGRESS-GUIDE</a>.
-      Project repository:
-      <a href="https://github.com/WallNutttttts/ingress_glyph_tools" target="_blank" rel="noopener noreferrer">WallNutttttts/ingress_glyph_tools</a>.
+      <div>
+        Glyph data and interaction concept adapted from
+        <a href="https://github.com/MarsianCreator/INGRESS-GUIDE" target="_blank" rel="noopener noreferrer">MarsianCreator/INGRESS-GUIDE</a>.
+      </div>
+      <div>
+        Project repository:
+        <a href="https://github.com/WallNutttttts/ingress_glyph_tools" target="_blank" rel="noopener noreferrer">WallNutttttts/ingress_glyph_tools</a>.
+      </div>
     </footer>
   </main>
 
@@ -500,7 +504,8 @@
       candidates: [],
       selectedSequence: null,
       speechEnabled: false,
-      isSpeaking: false
+      isSpeaking: false,
+      speechRunId: 0
     };
 
     const elements = {
@@ -1005,10 +1010,11 @@
       if (!supportsSpeech() || !words || words.length === 0) return;
 
       stopSpeech();
-      playSpeech(words, repeatCount);
+      const runId = state.speechRunId;
+      playSpeech(words, repeatCount, runId);
     }
 
-    function playSpeech(words, remaining) {
+    function playSpeech(words, remaining, runId) {
       const spokenText = words.map(pronounceGlyphWord).join(', ');
       const utterance = new SpeechSynthesisUtterance(spokenText);
       utterance.lang = 'en-US';
@@ -1016,13 +1022,15 @@
       utterance.pitch = 1;
       state.isSpeaking = true;
       utterance.onend = () => {
+        if (runId !== state.speechRunId) return;
         if (remaining > 1) {
-          playSpeech(words, remaining - 1);
+          playSpeech(words, remaining - 1, runId);
         } else {
           state.isSpeaking = false;
         }
       };
       utterance.onerror = () => {
+        if (runId !== state.speechRunId) return;
         state.isSpeaking = false;
         state.speechEnabled = false;
         renderSpeechButton();
@@ -1031,6 +1039,7 @@
     }
 
     function stopSpeech() {
+      state.speechRunId += 1;
       if (supportsSpeech()) {
         window.speechSynthesis.cancel();
       }
