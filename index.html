@@ -455,6 +455,7 @@
           <div class="matched-title">
             <div id="matchedName" class="matched-name">等待绘制</div>
             <button id="glyphSpeakButton" class="speak-button" type="button" aria-label="Enable reading">🔇</button>
+            <button id="glyphRepeatButton" class="speak-button repeat-button" type="button" aria-label="Repeat current glyph">↻</button>
           </div>
           <div id="counter" class="counter">0 条</div>
         </div>
@@ -498,7 +499,8 @@
       matchedGlyph: null,
       candidates: [],
       selectedSequence: null,
-      speechEnabled: false
+      speechEnabled: false,
+      isSpeaking: false
     };
 
     const elements = {
@@ -507,6 +509,7 @@
       clearButton: document.getElementById('clearButton'),
       matchedName: document.getElementById('matchedName'),
       glyphSpeakButton: document.getElementById('glyphSpeakButton'),
+      glyphRepeatButton: document.getElementById('glyphRepeatButton'),
       counter: document.getElementById('counter'),
       resultsBody: document.getElementById('resultsBody'),
       lengthInputs: Array.from(document.querySelectorAll('input[name="length"]'))
@@ -723,6 +726,10 @@
       renderSpeechButton();
     });
 
+    elements.glyphRepeatButton.addEventListener('click', () => {
+      repeatCurrentGlyph();
+    });
+
     elements.lengthInputs.forEach((input) => {
       input.addEventListener('change', () => {
         if (selectedLengths().length === 0) {
@@ -797,6 +804,7 @@
           '<div class="selected-wrap">' +
             '<div class="selected-actions">' +
               '<button id="backButton" class="back-button" type="button">回退</button>' +
+              '<button id="sequenceRepeatButton" class="speak-button repeat-button" type="button" aria-label="Repeat selected sequence twice">↻</button>' +
             '</div>' +
             sequenceHtml(state.selectedSequence, true) +
           '</div>';
@@ -804,6 +812,9 @@
           stopSpeech();
           state.selectedSequence = null;
           renderResults();
+        });
+        document.getElementById('sequenceRepeatButton').addEventListener('click', () => {
+          repeatSelectedSequence();
         });
         renderSpeechButton();
         return;
@@ -950,6 +961,21 @@
       button.title = speechSupported
         ? (state.speechEnabled ? 'Reading is on' : 'Reading is off')
         : 'Speech synthesis is not supported in this browser';
+
+      if (elements.glyphRepeatButton) {
+        elements.glyphRepeatButton.disabled = !speechSupported || !state.matchedGlyph;
+        elements.glyphRepeatButton.title = speechSupported
+          ? 'Repeat current glyph'
+          : 'Speech synthesis is not supported in this browser';
+      }
+
+      const sequenceRepeatButton = document.getElementById('sequenceRepeatButton');
+      if (sequenceRepeatButton) {
+        sequenceRepeatButton.disabled = !speechSupported || !state.selectedSequence;
+        sequenceRepeatButton.title = speechSupported
+          ? 'Repeat selected sequence twice'
+          : 'Speech synthesis is not supported in this browser';
+      }
     }
 
     function speakCurrentTarget() {
@@ -965,16 +991,39 @@
       return [];
     }
 
-    function speakWords(words) {
+    function repeatCurrentGlyph() {
+      if (state.isSpeaking || !state.matchedGlyph) return;
+      speakWords([state.matchedGlyph.name[0]]);
+    }
+
+    function repeatSelectedSequence() {
+      if (state.isSpeaking || !state.selectedSequence) return;
+      speakWords(state.selectedSequence, 2);
+    }
+
+    function speakWords(words, repeatCount = 1) {
       if (!supportsSpeech() || !words || words.length === 0) return;
 
       stopSpeech();
+      playSpeech(words, repeatCount);
+    }
+
+    function playSpeech(words, remaining) {
       const spokenText = words.map(pronounceGlyphWord).join(', ');
       const utterance = new SpeechSynthesisUtterance(spokenText);
       utterance.lang = 'en-US';
       utterance.rate = 0.86;
       utterance.pitch = 1;
+      state.isSpeaking = true;
+      utterance.onend = () => {
+        if (remaining > 1) {
+          playSpeech(words, remaining - 1);
+        } else {
+          state.isSpeaking = false;
+        }
+      };
       utterance.onerror = () => {
+        state.isSpeaking = false;
         state.speechEnabled = false;
         renderSpeechButton();
       };
@@ -985,6 +1034,7 @@
       if (supportsSpeech()) {
         window.speechSynthesis.cancel();
       }
+      state.isSpeaking = false;
     }
 
     function pronounceGlyphWord(word) {
